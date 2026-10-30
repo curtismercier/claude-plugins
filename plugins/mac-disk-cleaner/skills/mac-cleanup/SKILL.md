@@ -179,6 +179,9 @@ git -C "<folder>" status -s 2>/dev/null   # check the folder itself if it is a r
   git format-patch origin/<branch>..HEAD --stdout > rescue/<repo>-commits.patch  # local-only commits
   ```
 
+- `git status` doesn't show **ignored** files. Local secret files (`.env`, `.dev.vars`) are gitignored and may exist only in this checkout. List them with `git ls-files --others --ignored --exclude-standard --directory`, then copy them to a safe folder **outside any git repo**: a backup filename such as `.env.bak` may not match the ignore rule and could get committed.
+- For **git worktrees**, use `git worktree remove <path>` without `--force`, so git refuses anything that isn't clean, and don't delete the branch. Before removing one, check that no process has files open in it (`lsof +D <path>`).
+
 Only after the rescue bundle is verified should the folder be moved to Trash and the space reclaimed.
 
 ---

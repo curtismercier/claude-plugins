@@ -15,6 +15,9 @@ Reference guide for what is safe to delete and what must never be touched.
 | `~/Library/Caches/yarn/` | Yarn package cache | 100 MB–1 GB |
 | `~/Library/Caches/com.todesktop.*` | Desktop app update cache | 100 MB–1 GB |
 | `~/Library/Caches/com.*.ShipIt/` | Sparkle auto-update cache | 50–500 MB |
+| pnpm store | Run `pnpm store prune`, which removes only packages no project references | 1–10 GB |
+| `~/.cache/uv/` | uv Python package cache. Run `uv cache clean` | 0.5–5 GB |
+| `~/.cache/puppeteer/`, `~/Library/Caches/ms-playwright/` | Downloaded headless browser builds. Keep the newest build of each tool; older ones are unused | 0.5–3 GB per build |
 
 ## Safe with caution
 
@@ -24,6 +27,8 @@ Reference guide for what is safe to delete and what must never be touched.
 | `~/Library/Caches/com.spotify.client/` | Spotify cache — will re-download on next play |
 | Xcode derived data: `~/Library/Developer/Xcode/DerivedData/` | Safe if not actively building — regenerated on next build |
 | iOS Simulators: `~/Library/Developer/CoreSimulator/Devices/` | Can be large (10–50 GB). Remove unused simulators via Xcode > Preferences > Platforms |
+| Simulator runtimes: `/Library/Developer/CoreSimulator/` | Keep the runtime the current Xcode uses; remove only older ones. Use `xcrun simctl list runtimes`, not `du`, because `du` counts mounted runtime images as if they were on disk |
+| Automation browser profiles (Chromium folders containing a `Local State` file, outside `~/Library/Application Support`) | Delete only if they have no cookies and no saved logins and aren't in use (`--user-data-dir` in `ps`). Profiles with logins are a decision for the user |
 
 ## NEVER delete
 
