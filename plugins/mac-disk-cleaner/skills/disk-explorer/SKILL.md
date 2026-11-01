@@ -56,6 +56,7 @@ du -sh \
   ~/Library/Developer \
   ~/Library/Application\ Support \
   ~/Library/Caches \
+  ~/Library/Group\ Containers \
   2>/dev/null | sort -rh
 ```
 
@@ -68,6 +69,7 @@ du -sh \
   ~/Library/Developer/Xcode/DerivedData \
   ~/Library/Developer/CoreSimulator/Devices \
   ~/Library/Developer/Xcode/iOS\ DeviceSupport \
+  /Library/Developer/CoreSimulator/Caches \
   2>/dev/null | sort -rh
 ```
 
@@ -88,6 +90,17 @@ du -sh /Library/Developer/CoreSimulator/Caches/dyld/*/* 2>/dev/null   # per-runt
 
 ---
 
+## Step 4b — AI models and app containers
+
+Model weights and messaging caches are often the largest items, and they sit outside the usual folders. Check each one is still used before recommending removal; deleting a model is the user's call.
+
+```bash
+du -sh ~/models ~/ComfyUI ~/.cache/huggingface ~/.litert-lm ~/.ollama 2>/dev/null | sort -rh
+du -sh ~/Library/Group\ Containers/* 2>/dev/null | sort -rh | head -8
+```
+
+---
+
 ## Step 5 — Find large files (>500 MB) anywhere in home
 
 ```bash
@@ -96,7 +109,7 @@ find ~ -maxdepth 6 -size +500M -not -path "*/.*" 2>/dev/null | while read f; do 
 
 ---
 
-`ls -lh` and `find -size` report apparent size, which can be far above real size for sparse files. VM and container disks (for example a Colima `datadisk` or a VM `rootfs.img`) can show 10–100 GB while using a few GB. Measure with `du -sh`, which counts allocated blocks.
+`ls -lh` and `find -size` report apparent size, which can be far above real size for sparse files. VM and container disks (for example a Colima `datadisk` or a VM `rootfs.img`) can show 10–100 GB while using a few GB. Measure with `du -sh`, which counts allocated blocks. The `find` above skips hidden paths (`-not -path "*/.*"`), so check those with Step 2's `du -sh ~/.[!.]*`.
 
 ---
 
@@ -118,7 +131,7 @@ du -sh ~/.Trash/ 2>/dev/null
 Browser automation (Puppeteer, Playwright, CDP/DevTools MCP servers, screenshot scripts) creates a new Chromium user-data folder per run, roughly 100–200 MB each, and they pile up. Find them by their `Local State` file, then tell real profiles from empty shells by what they store:
 
 ```bash
-find ~ -maxdepth 6 -name "Local State" -type f -not -path "*/Library/CloudStorage/*" 2>/dev/null \
+find ~ -maxdepth 6 -name "Local State" -type f -not -path "*/Library/CloudStorage/*" -not -path "*/Library/Application Support/*" 2>/dev/null \
   | while read -r f; do d=$(dirname "$f"); p="$d/Default"
       ck=$(sqlite3 "file:$p/Cookies?immutable=1" "select count(*) from cookies" 2>/dev/null || echo 0)
       lg=$(sqlite3 "file:$p/Login Data?immutable=1" "select count(*) from logins" 2>/dev/null || echo 0)

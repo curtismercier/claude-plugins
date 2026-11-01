@@ -21,7 +21,7 @@ Work through each phase in order. Communicate with the user in whatever language
 Run these two commands and record the results:
 
 ```bash
-df -h / | tail -1
+df -h /System/Volumes/Data | tail -1
 ```
 
 ```bash
@@ -35,7 +35,7 @@ du -sh \
   2>/dev/null
 ```
 
-Note the "Avail" column from `df` as **before_avail** and record each cache size.
+Note the "Avail" column from `df` as **before_avail** and record each cache size. Paths that don't exist on a given Mac are skipped; the errors are suppressed.
 
 ---
 
@@ -89,7 +89,7 @@ brew cleanup 2>/dev/null || rm -rf ~/Library/Caches/Homebrew/ 2>/dev/null; true
 ## Phase 3 — Measure after
 
 ```bash
-df -h / | tail -1
+df -h /System/Volumes/Data | tail -1
 ```
 
 Capture the new "Avail" value as **after_avail**. Calculate freed = after_avail − before_avail.
@@ -143,7 +143,7 @@ Phase 4 only *flags* large items. If the user asks you to actually remove them, 
 
 - Move user files/folders to Trash (`mv "<item>" ~/.Trash/`) rather than `rm -rf`. This stays reversible (Finder → "Put Back") until the Trash is emptied.
 - **Space is NOT reclaimed until the Trash is emptied.** `df` will show no gain after a `mv` to Trash — don't report freed space until after emptying.
-- **`~/.Trash` is TCC-protected.** `rm -rf ~/.Trash/*` fails with `Operation not permitted` from a sandboxed shell, and the glob silently matches nothing (looks like success but isn't). Empty it through Finder instead:
+- **Empty the Trash through Finder.** A shell `rm -rf ~/.Trash/*` can be refused or match nothing. Not reproduced on macOS 26.3: `rm` removed a file the shell had just placed there. Finder is still the reliable route:
   ```bash
   osascript -e 'tell application "Finder" to empty trash'
   ```
@@ -173,17 +173,21 @@ git -C "<folder>" status -s 2>/dev/null   # check the folder itself if it is a r
 
 - Repos with `uncommitted=0` and `unpushed=0` are safe — fully on the remote, re-cloneable.
 - "Unpushed" commits are often **already on the remote under a different SHA** (squash-merge). Verify by commit message against `origin/<branch>` before assuming work is at risk — don't force-push to "rescue" them.
-- For repos with genuine uncommitted/unpushed work, **rescue the deltas first** (usually a few KB) into a safe folder before deleting:
+- For repos with genuine uncommitted/unpushed work, **rescue the deltas first** (usually a few KB) into `<rescue>`, a folder outside that repo (for example `~/rescue/<repo>`), before deleting:
   ```bash
-  git diff HEAD > rescue/<repo>-changes.diff                                  # tracked edits
+  git diff HEAD > <rescue>/<repo>-changes.diff                                  # tracked edits
   git ls-files --others --exclude-standard | grep -viE '\.(swp|zip)$|node_modules/' \
-    | while read -r f; do mkdir -p "rescue/<repo>/$(dirname "$f")"; cp -p "$f" "rescue/<repo>/$f"; done
-  git format-patch origin/<branch>..HEAD --stdout > rescue/<repo>-commits.patch  # local-only commits
+    | while read -r f; do mkdir -p "<rescue>/<repo>/$(dirname "$f")"; cp -p "$f" "<rescue>/<repo>/$f"; done
+  git format-patch origin/<branch>..HEAD --stdout > <rescue>/<repo>-commits.patch  # local-only commits
   ```
 
 - `git status` doesn't show **ignored** files. Local secret files (`.env`, `.dev.vars`) are gitignored and may exist only in this checkout. List them with `git ls-files --others --ignored --exclude-standard --directory`, then copy them to a safe folder **outside any git repo**: a backup filename such as `.env.bak` may not match the ignore rule and could get committed.
 - For **git worktrees**, use `git worktree remove <path>` without `--force`, so git refuses anything that isn't clean, and don't delete the branch. Before removing one, check that no process has files open in it (`lsof +D <path>`).
 - A folder that is not a registered worktree (no `.git` link, absent from `git worktree list`) can't be checked against git. Find its commit by subject, or ask the user. Don't mark it safe on size alone.
+
+A rescue folder inside the repo is copied into itself by the untracked-file pass. Tested on a scratch repo with the rescue folder outside: the pass captured the unpushed commit, the uncommitted edit and the untracked file, and skipped `node_modules/`.
+
+Stashes are not covered. Check `git stash list`, then export each entry with `git stash show -p 'stash@{n}' > <rescue>/<repo>-stash-n.diff`.
 
 Only after the rescue bundle is verified should the folder be moved to Trash and the space reclaimed.
 
