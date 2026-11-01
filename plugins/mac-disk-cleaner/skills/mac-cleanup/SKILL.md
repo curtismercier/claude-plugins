@@ -94,6 +94,8 @@ df -h / | tail -1
 
 Capture the new "Avail" value as **after_avail**. Calculate freed = after_avail − before_avail.
 
+APFS can release space a little later, for example after a mounted image or simulator service lets go. If freed is well below the sizes deleted, wait a minute, re-measure, and say so in the report rather than reporting the lower figure as final.
+
 ---
 
 ## Phase 4 — Scan for large items
@@ -181,6 +183,7 @@ git -C "<folder>" status -s 2>/dev/null   # check the folder itself if it is a r
 
 - `git status` doesn't show **ignored** files. Local secret files (`.env`, `.dev.vars`) are gitignored and may exist only in this checkout. List them with `git ls-files --others --ignored --exclude-standard --directory`, then copy them to a safe folder **outside any git repo**: a backup filename such as `.env.bak` may not match the ignore rule and could get committed.
 - For **git worktrees**, use `git worktree remove <path>` without `--force`, so git refuses anything that isn't clean, and don't delete the branch. Before removing one, check that no process has files open in it (`lsof +D <path>`).
+- A folder that is not a registered worktree (no `.git` link, absent from `git worktree list`) can't be checked against git. Find its commit by subject, or ask the user. Don't mark it safe on size alone.
 
 Only after the rescue bundle is verified should the folder be moved to Trash and the space reclaimed.
 

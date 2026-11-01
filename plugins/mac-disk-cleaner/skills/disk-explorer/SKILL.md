@@ -81,7 +81,10 @@ du -sh /Library/Developer/CoreSimulator/Caches/dyld/*/* 2>/dev/null   # per-runt
 
 - Keep the runtime the user's current Xcode, and any simulator-driving tool, actually uses. Only recommend removing **older** runtimes.
 - A dyld cache folder named after a runtime that is no longer listed is an orphan and can go.
-- Older "cryptex bundle" runtimes don't appear in `simctl runtime list` and can't be removed with `simctl runtime delete`. Point the user to Xcode → Settings → Components. If one isn't listed there, removing it needs admin rights (`sudo hdiutil detach` + `sudo rm`), which the user should run themselves.
+- Older runtimes may be listed only under a UUID, after `sudo killall simdiskimaged` restarts the service. Delete by UUID: `xcrun simctl runtime delete <uuid>`. Deleting by version string (e.g. `22G86`) fails.
+- `Resource busy` means a process holds the mount. Find it with `lsof -nP <mountpoint>` (usually Simulator, Xcode, or a simulator host). Quit it, or restart `simdiskimaged` as above.
+- Never `rm` a runtime bundle while it is mounted: its image file backs the mount, so `rm` fails with `Operation not permitted`.
+- `hdiutil detach` names the image device (`diskN`), not the volume you pass. Map them with `diskutil list`.
 
 ---
 
@@ -90,6 +93,10 @@ du -sh /Library/Developer/CoreSimulator/Caches/dyld/*/* 2>/dev/null   # per-runt
 ```bash
 find ~ -maxdepth 6 -size +500M -not -path "*/.*" 2>/dev/null | while read f; do du -sh "$f" 2>/dev/null; done | sort -rh | head -20
 ```
+
+---
+
+`ls -lh` and `find -size` report apparent size, which can be far above real size for sparse files. VM and container disks (for example a Colima `datadisk` or a VM `rootfs.img`) can show 10–100 GB while using a few GB. Measure with `du -sh`, which counts allocated blocks.
 
 ---
 
@@ -142,6 +149,8 @@ Only call a worktree **safe** to remove after checking all of the following:
 - it has no **ignored** files that exist nowhere else: `git ls-files --others --ignored --exclude-standard --directory`. Local secret files (`.env`, `.dev.vars`) are gitignored, so they never appear in `git status`, and they may only exist in the worktree. Back them up before removing it.
 
 Remove worktrees with `git worktree remove <path>`, without `--force`, so git refuses anything that isn't clean. Folders inside a `.worktrees` directory that `git worktree list` doesn't show are orphans; inspect them before deleting.
+
+Before deleting a `target/`, `_build/` or `node_modules/` folder, check for a running build: `pgrep -fl "cargo|rustc|node"`. Scratch test folders that each contain a full `node_modules` (for example `curl-install-test*`) are regenerable; check `lsof +D <path>` first, then delete.
 
 ---
 
